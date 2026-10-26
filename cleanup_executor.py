@@ -21,6 +21,10 @@ from remove_relationships import (
     remove_relationships
 )
 
+from variation_cleanup import (
+    cleanup_variations
+)
+
 from remove_expressions import (
     remove_expressions
 )
@@ -172,6 +176,23 @@ def execute_cleanup(
 
     print()
     print("=" * 60)
+    print("CLEANING VARIATIONS")
+    print("=" * 60)
+
+    removed_variations = (
+        cleanup_variations(
+            semantic_folder,
+            apply_changes=True
+        )
+    )
+
+    print(
+        f"Removed Variations: "
+        f"{len(removed_variations)}"
+    )
+
+    print()
+    print("=" * 60)
     print("REMOVING EXPRESSIONS")
     print("=" * 60)
 
@@ -306,18 +327,46 @@ def execute_cleanup(
 
 if __name__ == "__main__":
 
-    pbip_root = (
-        r"C:\Users\LINGRAM\Documents\PBI Test Files"
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Power BI PBIP Cleanup Tool"
+        )
     )
 
-    report_name = (
-        "FFMU"
+    parser.add_argument(
+        "pbip_root",
+        help=(
+            "Folder containing "
+            "<Report>.Report and "
+            "<Report>.SemanticModel"
+        )
     )
+
+    parser.add_argument(
+        "report_name",
+        help=(
+            "PBIP report name"
+        )
+    )
+
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help=(
+            "Apply changes. "
+            "Without this flag "
+            "the tool runs as a dry run."
+        )
+    )
+
+    args = parser.parse_args()
 
     paths = (
         get_project_paths(
-            pbip_root,
-            report_name
+            args.pbip_root,
+            args.report_name
         )
     )
 
@@ -328,5 +377,5 @@ if __name__ == "__main__":
         semantic_folder=(
             paths["semantic_folder"]
         ),
-        apply_changes=True
+        apply_changes=args.apply
     )

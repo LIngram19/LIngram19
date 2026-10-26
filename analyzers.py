@@ -66,14 +66,19 @@ def build_model_objects(
         # Measures
         #
         for match in re.finditer(
-            r"measure\s+'([^']+)'",
+            r"measure\s+(?:'([^']+)'|([^\r\n=]+))",
             text,
             flags=re.IGNORECASE
         ):
 
+            measure_name = (
+                match.group(1)
+                or match.group(2)
+            )
+
             measures.add(
                 normalize_measure_name(
-                    match.group(1)
+                    measure_name.strip()
                 )
             )
 
@@ -147,15 +152,18 @@ def build_measure_dependency_graph(
             continue
 
         blocks = re.finditer(
-            r"measure\s+'([^']+)'.*?(?=\n\s*measure\s+'|\Z)",
+            r"measure\s+(?:'([^']+)'|([^\r\n=]+)).*?(?=\n\s*measure\s+(?:'|[^\r\n=])|\Z)",
             text,
             flags=re.DOTALL | re.IGNORECASE
-        )
+            )
 
         for match in blocks:
 
             measure_name = normalize_measure_name(
-    match.group(1)
+    (
+        match.group(1)
+        or match.group(2)
+    ).strip()
 )
 
             definition = (
@@ -187,6 +195,35 @@ def build_measure_dependency_graph(
             for dep in graph[measure]
             if dep in model_measures
         }
+
+    print()
+    print("=" * 60)
+    print("GRAPH CHECK")
+    print("=" * 60)
+
+    for target in [
+        "my net fees earned",
+        "my sum net fees earned",
+        "r12 sum backlog"
+    ]:
+
+        print()
+
+        print(
+            f"{target}: "
+            f"{target in graph}"
+        )
+
+        if target in graph:
+
+            for dep in sorted(
+                graph[target]
+            ):
+
+                print(
+                    f"  -> {dep}"
+                )
+
     return graph
 
 def get_visual_measure_names(
@@ -200,77 +237,98 @@ def get_visual_measure_names(
         report_folder
     )
 
-    for visual_file in report_path.rglob(
-        "visual.json"
+    for json_file in report_path.rglob(
+        "*.json"
     ):
 
         try:
 
-            text = visual_file.read_text(
+            text = json_file.read_text(
                 encoding="utf-8",
                 errors="ignore"
             )
 
-            refs = re.findall(
-                r'"queryRef"\s*:\s*"([^"]+)"',
-                text,
-                flags=re.IGNORECASE
-            )
-
-            for ref in refs:
-
-               if "." not in ref:
-                continue
-
-                object_name = normalize_measure_name(
-                    ref.split(
-                        ".",
-                        1
-                    )[1]
-                )
-
-                if object_name in model_measures:
-
-                    measures.add(
-                        object_name
-                    )
-
         except Exception:
-
-            pass
-
-    return measures
-def get_reachable_measures(
-    graph,
-    root_measures
-):
-
-    reachable = set()
-
-    stack = list(
-        root_measures
-    )
-
-    while stack:
-
-        measure = stack.pop()
-
-        if measure in reachable:
 
             continue
 
-        reachable.add(
-            measure
-        )
+        #
+        # queryRef references
+        #
+        for ref in re.findall(
+            r'"queryRef"\s*:\s*"([^"]+)"',
+            text,
+            flags=re.IGNORECASE
+        ):
 
-        stack.extend(
-            graph.get(
-                measure,
-                set()
+            if "." not in ref:
+
+                continue
+
+            object_name = normalize_measure_name(
+                ref.split(
+                    ".",
+                    1
+                )[1]
             )
-        )
 
-    return reachable
+            if object_name in model_measures:
+
+                measures.add(
+                    object_name
+                )
+
+        #
+        # Property references
+        #
+        for prop in re.findall(
+            r'"Property"\s*:\s*"([^"]+)"',
+            text,
+            flags=re.IGNORECASE
+        ):
+
+            object_name = normalize_measure_name(
+                prop
+            )
+
+            if object_name in model_measures:
+
+                measures.add(
+                    object_name
+                )
+
+        #
+        # Field Parameter references
+        #
+        for _, measure_name in re.findall(
+            r"'''([^']+)''\[([^\]]+)\]",
+            text,
+            flags=re.IGNORECASE
+        ):
+
+            measure_name = (
+                normalize_measure_name(
+                    measure_name
+                )
+            )
+
+            if (
+                measure_name
+                in model_measures
+            ):
+
+                measures.add(
+                    measure_name
+                )
+
+    print()
+
+    print(
+        f"Root Measures Found: "
+        f"{len(measures)}"
+    )
+
+    return measures
 # ============================================================
 # EXPRESSIONS
 # ============================================================
@@ -360,34 +418,101 @@ def find_unused_measures(
 
     graph = build_measure_dependency_graph(
         semantic_folder
-)
+    )
+
+    target = (
+        "my net fees earned"
+    )
+
+    print()
+
+    print(
+        f"Dependencies for "
+        f"{target}:"
+    )
+
+    for dep in sorted(
+        graph.get(
+            target,
+            set()
+        )
+    ):
+
+        print(
+            f"  -> {dep}"
+        )
 
     all_measures = set(
         graph.keys()
-)
+    )
+
     _, model_measures, _ = (
-    build_model_objects(
-        semantic_folder
+        build_model_objects(
+            semantic_folder
+        )
     )
-)
+
     root_measures = (
-    get_visual_measure_names(
-        report_folder,
-        model_measures
+        get_visual_measure_names(
+            report_folder,
+            model_measures
+        )
     )
-)
+
+    print()
+    print("=" * 60)
+    print("ROOT CHECK")
+    print("=" * 60)
+
+    for target in [
+        "my net fees earned",
+        "my sum net fees earned",
+        "r12 sum backlog"
+    ]:
+
+        print(
+            f"{target}: "
+            f"{target in root_measures}"
+        )
+
+    print()
+    print("=" * 60)
+    print("ROOT MEASURE SAMPLE")
+    print("=" * 60)
+
+    for measure in sorted(
+        root_measures
+    )[:100]:
+
+        print(measure)
 
     used_measures = (
-    get_reachable_measures(
-        graph,
-        root_measures
+        get_reachable_measures(
+            graph,
+            root_measures
+        )
     )
-)
 
     used_measures = (
         used_measures
         & all_measures
     )
+
+    print()
+    print("=" * 60)
+    print("REACHABILITY CHECK")
+    print("=" * 60)
+
+    for target in [
+        "my net fees earned",
+        "my sum net fees earned",
+        "r12 sum backlog"
+    ]:
+
+        print(
+            f"{target}: "
+            f"{target in used_measures}"
+        )
 
     print()
 
@@ -405,22 +530,24 @@ def find_unused_measures(
         f"Reachable Measures: "
         f"{len(used_measures)}"
     )
+
     print(
-    f"Unreachable Measures: "
-    f"{len(all_measures) - len(used_measures)}"
-)
+        f"Unreachable Measures: "
+        f"{len(all_measures) - len(used_measures)}"
+    )
+
     details = []
 
     status_counts = {
-    "UNUSED": 0,
-    "DAX_ONLY": 0,
-    "REPORT_ONLY": 0
-}
+        "UNUSED": 0,
+        "DAX_ONLY": 0,
+        "REPORT_ONLY": 0
+    }
 
     for idx, measure in enumerate(
         sorted(all_measures),
         start=1
-        ):
+    ):
 
         if idx % 100 == 0:
 
@@ -459,12 +586,10 @@ def find_unused_measures(
             }
         )
 
-            
-
     grouped = {
-    "UNUSED": [],
-    "DAX_ONLY": [],
-    "REPORT_ONLY": []
+        "UNUSED": [],
+        "DAX_ONLY": [],
+        "REPORT_ONLY": []
     }
 
     for item in details:
@@ -480,7 +605,7 @@ def find_unused_measures(
     print(
         "=" * 60
     )
-   
+
     print(
         "MEASURE STATUS SUMMARY"
     )
@@ -516,9 +641,9 @@ def find_unused_measures(
     print()
 
     print(
-    f"Measures Referenced By Visuals: "
-    f"{len(root_measures)}"
-)
+        f"Measures Referenced By Visuals: "
+        f"{len(root_measures)}"
+    )
 
     return (
         len(all_measures),

@@ -83,33 +83,21 @@ def build_inventory(
         # MEASURES
         # ----------------------------------------------------
 
-        for line in text.splitlines():
+        measure_blocks = re.finditer(
+            r"measure\s+(?:'([^']+)'|([^\r\n=]+)).*?(?=\n\s*measure\s+(?:'|[^\r\n=])|\Z)",
+            text,
+            flags=re.DOTALL | re.IGNORECASE
+        )
 
-            stripped = line.strip()
-
-            if not stripped.startswith(
-                "measure "
-            ):
-                continue
+        for match in measure_blocks:
 
             measure_name = (
-                stripped
-                .replace(
-                    "measure ",
-                    "",
-                    1
-                )
-                .split(
-                    "=",
-                    1
-                )[0]
-                .strip()
-                .strip("'")
-                .strip('"')
+                match.group(1)
+                or match.group(2)
             )
 
             measure_name = normalize_name(
-                measure_name
+                measure_name.strip()
             )
 
             helper_name = (
@@ -124,7 +112,7 @@ def build_inventory(
                 "table": table_name,
                 "name": measure_name,
                 "helper": helper_name,
-                "dax": stripped
+                "dax": match.group(0)
             }
 
         # ----------------------------------------------------
