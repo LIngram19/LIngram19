@@ -181,13 +181,9 @@ def compute_keep_tables(
 
 def main():
 
-    REPORT_ROOT = Path(
-        r"c:\Users\LINGRAM\Documents\PBI Test Files\5 Year Look Back.Report"
-    )
+    from config import REPORT_ROOT
 
-    MODEL_ROOT = Path(
-        r"c:\Users\LINGRAM\Documents\PBI Test Files\5 Year Look Back.SemanticModel"
-    )
+    from config import MODEL_ROOT
 
     model_tables_dir = MODEL_ROOT / "definition" / "tables"
 

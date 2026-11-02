@@ -13,9 +13,7 @@ from unused_table_detector import (
 )
 
 
-MODEL_ROOT = Path(
-    r"c:\Users\LINGRAM\Documents\PBI Test Files\5 Year Look Back.SemanticModel"
-)
+from config import MODEL_ROOT
 
 
 def normalize_name(value: str | None) -> str | None:

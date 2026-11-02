@@ -7,9 +7,7 @@ from expression_detector import (
     get_unused_expressions,
 )
 
-MODEL_ROOT = Path(
-    r"c:\Users\LINGRAM\Documents\PBI Test Files\5 Year Look Back.SemanticModel"
-)
+from config import MODEL_ROOT
 
 
 def remove_expressions(
@@ -76,10 +74,10 @@ def remove_expressions(
 
         if expression_name in expression_names:
 
-            print(
-                f"Removing expression: "
-                f"{expression_name}"
-            )
+            # print(
+            #     f"Removing expression: "
+            #     f"{expression_name}"
+            # )
 
             removed.add(
                 expression_name
@@ -118,10 +116,10 @@ def main():
     print("REMOVED EXPRESSIONS")
     print("=" * 60)
 
-    for expression in sorted(
-        removed
-    ):
-        print(expression)
+    # for expression in sorted(
+    #     removed
+    # ):
+    #     print(expression)
 
     print()
     print(

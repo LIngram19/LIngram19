@@ -10,9 +10,7 @@ from relationship_detector import (
     get_relationships_to_remove,
 )
 
-MODEL_ROOT = Path(
-    r"c:\Users\LINGRAM\Documents\PBI Test Files\5 Year Look Back.SemanticModel"
-)
+from config import MODEL_ROOT
 
 
 def remove_relationships(

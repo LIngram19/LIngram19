@@ -2,10 +2,7 @@ from pathlib import Path
 import shutil
 
 
-MODEL_ROOT = Path(
-    r"c:\Users\LINGRAM\Documents\PBI Test Files\5 Year Look Back.SemanticModel"
-)
-
+from config import MODEL_ROOT
 
 def find_latest_backup(model_root: Path) -> Path:
     backup_root = model_root.parent / "SemanticModelBackups"

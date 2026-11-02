@@ -9,13 +9,9 @@ from report_usage_lib import (
     parse_table_name_from_file,
 )
 
-MODEL_ROOT = Path(
-    r"c:\Users\LINGRAM\Documents\PBI Test Files\5 Year Look Back.SemanticModel"
-)
+from config import MODEL_ROOT
 
-REPORT_ROOT = Path(
-    r"c:\Users\LINGRAM\Documents\PBI Test Files\5 Year Look Back.Report"
-)
+from config import REPORT_ROOT
 
 
 def normalize_name(value: str | None) -> str | None:
