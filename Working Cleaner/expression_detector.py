@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Dict, Set
 import re
 
 from config import MODEL_ROOT
 
 
-def normalize_name(value: str | None) -> str | None:
+def normalize_name(
+    value: str | None,
+) -> str | None:
 
     if value is None:
         return None
@@ -17,7 +18,13 @@ def normalize_name(value: str | None) -> str | None:
     if not value:
         return None
 
-    value = value.replace("'", "").replace('"', "")
+    value = value.replace(
+        "'",
+        "",
+    ).replace(
+        '"',
+        "",
+    )
 
     return value.strip() or None
 
@@ -79,13 +86,17 @@ def parse_expressions() -> Dict[str, str]:
 
             j += 1
 
-        expressions[
-            normalize_name(
-                expression_name
-            )
-        ] = "\n".join(
-            lines[i:j]
+        normalized = normalize_name(
+            expression_name
         )
+
+        if normalized:
+
+            expressions[
+                normalized
+            ] = "\n".join(
+                lines[i:j]
+            )
 
         i = j
 
@@ -123,18 +134,24 @@ def build_expression_graph(
                 text,
                 flags=re.IGNORECASE,
             ):
+
                 graph[
                     expression_name
-                ].add(dependency)
+                ].add(
+                    dependency
+                )
 
             elif re.search(
                 bare_pattern,
                 text,
                 flags=re.IGNORECASE,
             ):
+
                 graph[
                     expression_name
-                ].add(dependency)
+                ].add(
+                    dependency
+                )
 
     return graph
 
@@ -163,6 +180,58 @@ def get_table_tmdl_text() -> str:
     return "\n".join(chunks)
 
 
+def get_table_query_groups() -> Set[str]:
+
+    tables_dir = (
+        MODEL_ROOT
+        / "definition"
+        / "tables"
+    )
+
+    query_groups: Set[str] = set()
+
+    for table_file in sorted(
+        tables_dir.glob("*.tmdl")
+    ):
+
+        lines = table_file.read_text(
+            encoding="utf-8",
+            errors="ignore",
+        ).splitlines()
+
+        for line in lines:
+
+            stripped = line.strip()
+
+            if not stripped.startswith(
+                "queryGroup:"
+            ):
+                continue
+
+            name_part = stripped[
+                len("queryGroup:")
+            ]
+
+            query_group_name = (
+                name_part
+                .strip()
+                .strip("'")
+                .strip('"')
+            )
+
+            normalized = normalize_name(
+                query_group_name
+            )
+
+            if normalized:
+
+                query_groups.add(
+                    normalized
+                )
+
+    return query_groups
+
+
 def find_root_expressions(
     expressions: Dict[str, str],
 ) -> Set[str]:
@@ -170,6 +239,10 @@ def find_root_expressions(
     roots: Set[str] = set()
 
     table_text = get_table_tmdl_text()
+
+    active_query_groups = (
+        get_table_query_groups()
+    )
 
     for expression_name in expressions:
 
@@ -188,6 +261,7 @@ def find_root_expressions(
             table_text,
             flags=re.IGNORECASE,
         ):
+
             roots.add(
                 expression_name
             )
@@ -197,6 +271,21 @@ def find_root_expressions(
             table_text,
             flags=re.IGNORECASE,
         ):
+
+            roots.add(
+                expression_name
+            )
+
+        #
+        # Preserve expressions whose names
+        # match query groups referenced by
+        # table partitions.
+        #
+        if (
+            expression_name
+            in active_query_groups
+        ):
+
             roots.add(
                 expression_name
             )
@@ -220,7 +309,9 @@ def find_active_expressions() -> Set[str]:
         roots
     )
 
-    queue = list(roots)
+    queue = list(
+        roots
+    )
 
     while queue:
 
@@ -273,6 +364,7 @@ def main():
         print(expression)
 
     print()
+
     print(
         f"Count: {len(unused)}"
     )

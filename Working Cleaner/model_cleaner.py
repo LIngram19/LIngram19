@@ -1,15 +1,19 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Set
 import json
 import re
 
-
 from config import MODEL_ROOT
 
+from unused_querygroup_detector import (
+    get_unused_query_groups,
+)
 
-def normalize_name(value: str | None) -> str | None:
+
+def normalize_name(
+    value: str | None,
+) -> str | None:
 
     if value is None:
         return None
@@ -19,9 +23,18 @@ def normalize_name(value: str | None) -> str | None:
     if not value:
         return None
 
-    value = value.replace("'", "").replace('"', "")
+    value = value.replace(
+        "'",
+        "",
+    ).replace(
+        '"',
+        "",
+    )
 
-    if value.startswith("[") and value.endswith("]"):
+    if (
+        value.startswith("[")
+        and value.endswith("]")
+    ):
         value = value[1:-1]
 
     return value.strip() or None
@@ -56,7 +69,8 @@ def get_existing_expressions() -> Set[str]:
         ]
 
         expression_name = (
-            name_part.split(
+            name_part
+            .split(
                 "=",
                 1,
             )[0]
@@ -70,50 +84,11 @@ def get_existing_expressions() -> Set[str]:
         )
 
         if normalized:
-            existing.add(normalized)
+            existing.add(
+                normalized
+            )
 
     return existing
-
-
-def get_active_query_groups(
-    expressions_file: Path,
-) -> Set[str]:
-
-    active: Set[str] = set()
-
-    text = expressions_file.read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-
-    for match in re.finditer(
-        r"queryGroup:\s*'([^']+)'",
-        text,
-        flags=re.IGNORECASE,
-    ):
-
-        query_group = match.group(1)
-
-        #
-        # Keep exact query group
-        #
-        active.add(query_group)
-
-        #
-        # Keep all parent folders
-        #
-        current = query_group
-
-        while "\\" in current:
-
-            current = current.rsplit(
-                "\\",
-                1,
-            )[0]
-
-            active.add(current)
-
-    return active
 
 
 def parse_ref_table_name(
@@ -131,7 +106,9 @@ def parse_ref_table_name(
         len("ref table "):
     ].strip()
 
-    return normalize_name(table_name)
+    return normalize_name(
+        table_name
+    )
 
 
 def clean_query_order_line(
@@ -166,13 +143,13 @@ def clean_query_order_line(
             )
 
             #
-            # Remove tables that were deleted
+            # Remove deleted tables
             #
             if normalized in removed_tables:
                 continue
 
             #
-            # Keep expressions
+            # Preserve expressions
             #
             if (
                 normalized
@@ -181,13 +158,9 @@ def clean_query_order_line(
                 cleaned_values.append(
                     value
                 )
+
                 continue
 
-            #
-            # Keep everything else.
-            # Only remove tables we know
-            # were deleted.
-            #
             cleaned_values.append(
                 value
             )
@@ -197,7 +170,7 @@ def clean_query_order_line(
             + " = "
             + json.dumps(
                 cleaned_values,
-                separators=(",", ":")
+                separators=(",", ":"),
             )
         )
 
@@ -221,21 +194,14 @@ def clean_model(
         / "model.tmdl"
     )
 
-    expressions_file = (
-        MODEL_ROOT
-        / "definition"
-        / "expressions.tmdl"
-    )
-
     existing_expressions = (
         get_existing_expressions()
     )
 
-    active_query_groups = (
-        get_active_query_groups(
-            expressions_file
-        )
-    )
+    unused_query_groups = {
+        normalize_name(q)
+        for q in get_unused_query_groups()
+    }
 
     lines = model_file.read_text(
         encoding="utf-8",
@@ -255,7 +221,7 @@ def clean_model(
         stripped = line.strip()
 
         #
-        # Remove ref table lines
+        # Remove deleted table refs
         #
         ref_table = parse_ref_table_name(
             line
@@ -263,7 +229,8 @@ def clean_model(
 
         if (
             ref_table
-            and ref_table in removed_tables
+            and ref_table
+            in removed_tables
         ):
 
             removed_refs.add(
@@ -281,14 +248,15 @@ def clean_model(
         ):
 
             match = re.match(
-                r"queryGroup\s+'([^']+)'",
+                r"queryGroup\s+(?:'([^']+)'|(.+))",
                 stripped,
             )
 
             if match:
 
-                query_group = (
+                query_group = normalize_name(
                     match.group(1)
+                    or match.group(2)
                 )
 
                 block_end = i + 1
@@ -303,8 +271,7 @@ def clean_model(
                     ]
 
                     if (
-                        next_line.strip()
-                        and not next_line.startswith(
+                        next_line                     and not next_line.startswith(
                             (
                                 " ",
                                 "\t",
@@ -317,7 +284,8 @@ def clean_model(
 
                 if (
                     query_group
-                    not in active_query_groups
+                    and query_group
+                    in unused_query_groups
                 ):
 
                     removed_query_groups.add(
@@ -333,7 +301,9 @@ def clean_model(
             existing_expressions,
         )
 
-        output.append(line)
+        output.append(
+            line
+        )
 
         i += 1
 

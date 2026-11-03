@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Set
 
 from expression_detector import (
     get_unused_expressions,
+    normalize_name,
 )
 
 from config import MODEL_ROOT
@@ -46,14 +46,11 @@ def remove_expressions(
             len("expression "):
         ]
 
-        expression_name = (
+        expression_name = normalize_name(
             name_part.split(
                 "=",
                 1,
             )[0]
-            .strip()
-            .strip("'")
-            .strip('"')
         )
 
         block_end = i + 1
@@ -72,12 +69,11 @@ def remove_expressions(
 
             block_end += 1
 
-        if expression_name in expression_names:
-
-            # print(
-            #     f"Removing expression: "
-            #     f"{expression_name}"
-            # )
+        if (
+            expression_name
+            and expression_name
+            in expression_names
+        ):
 
             removed.add(
                 expression_name
@@ -116,12 +112,13 @@ def main():
     print("REMOVED EXPRESSIONS")
     print("=" * 60)
 
-    # for expression in sorted(
-    #     removed
-    # ):
-    #     print(expression)
+    for expression in sorted(
+        removed
+    ):
+        print(expression)
 
     print()
+
     print(
         f"Removed: {len(removed)}"
     )
